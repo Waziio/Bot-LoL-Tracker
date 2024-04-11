@@ -3,6 +3,8 @@ import RiotService from "../services/apiRiot";
 import GameResult from "../types/gameResult";
 import Tier from "../types/tier";
 import MessageBuilder from "./MessageBuilder";
+import { strToTier } from "../utils/utils";
+import { compareTotalRank } from "./Compare";
 
 class Summoner {
   private id: string;
@@ -55,17 +57,30 @@ class Summoner {
     return `${this.getDiscordAt()} est **${this.tier} ${this.rank}** ${this.lp} LP`;
   }
 
+  getLastGameId() : string {
+    return this.lastGameId
+  }
+
+  getData() {
+    return {
+      name: this.name,
+      tier: this.tier,
+      rank: this.rank,
+      lp: this.lp,
+    };
+  }
+
   async loadData() {
     const data = (await this.riotService.getSummonerById(this.id)).data;
     if (!data) return false;
     this.puuid = data.puuid;
     this.name = data.name;
-    if (!(await this.getLastGameId())) return false;
+    if (!(await this.findLastGameId())) return false;
     if (!(await this.loadRank())) return false;
     return true;
   }
 
-  async getLastGameId() {
+  async findLastGameId() {
     const data = (await this.riotService.getLastGameId(this.puuid)).data;
     if (!data) return false;
     this.lastGameId = data[0];
@@ -74,32 +89,49 @@ class Summoner {
 
   async loadRank() {
     let result = (await this.riotService.getRank(this.id)).data;
+    // Get only solo queue rank
     result = result.filter((obj: any) => obj.queueType === 'RANKED_SOLO_5x5');
     const data = result[0];
     console.log(data);
+    // Checks if summoner is unranked
     if (!data || data?.queueType !== "RANKED_SOLO_5x5") return false;
-    this.tier = this.strToTier(data.tier);
+    this.tier = strToTier(data.tier);
     this.rank = data.rank;
     this.lp = data.leaguePoints;
     return true;
   }
 
+  /**
+   * Main function of this class.
+   * It tracks the rank of the summoner, and build the discord message.
+   */
   async check(): Promise<EmbedBuilder | boolean> {
     const oldTier = this.tier;
     const oldRank = this.rank;
     const oldLp = this.lp;
     const oldLastGameId = this.lastGameId;
+    // Init data of summoner
     if (!(await this.loadData())) return false;
+    // Checks if there is a new game
     if (oldLastGameId === this.lastGameId) return false;
+    // Compare rank
     const msgBuilder = new MessageBuilder(this);
-    const result = this.compareTotalRank(oldTier, oldRank, oldLp);
+    const result = compareTotalRank(this, oldTier, oldRank, oldLp);
+    // If last game was a remake, ignore it
     if (result.result === GameResult.REMAKE) return false;
-    const { champion, score } = await this.getLastMatch(this.lastGameId);
+    // Get infos from last game
+    const { champion, score } = await this.getLastGameInfos(this.lastGameId);
     if (!champion) return false;
+    // Build discord message 
     return msgBuilder.build(result.result, result.type, result.value, this.name, champion, score);
   }
 
-  async getLastMatch(matchId: string): Promise<{ champion: string; score: string }> {
+  /**
+   * Get the score and the champion played by the summoner in a game
+   * @param matchId
+   * @returns 
+   */
+  async getLastGameInfos(matchId: string): Promise<{ champion: string; score: string }> {
     const matchInfos: any = await this.riotService.getGameInfos(matchId);
     const players: Array<any> = matchInfos.data.info.participants;
     let score = {
@@ -112,7 +144,9 @@ class Summoner {
     if (matchInfos) {
       // Find summoner
       players.forEach((player) => {
+        // If the player is our summoner
         if (player.puuid === this.puuid) {
+          // Get his game infos
           score.kills = player.kills;
           score.deaths = player.deaths;
           score.assists = player.assists;
@@ -123,115 +157,8 @@ class Summoner {
 
     return { champion: champion, score: `${score.kills} / ${score.deaths} / ${score.assists}` };
   }
-
-  compareTotalRank(currentTier: Tier, currentRank: string, currentLp: number): Compare {
-    // Same tier
-    if (this.compareTier(currentTier, this.tier) === "same") {
-      // Same rank
-      if (this.compareRank(currentRank, this.rank) === "same") {
-        // Win lp
-        if (this.lp > currentLp) return { result: GameResult.VICTORY, type: "LP", value: this.lp - currentLp };
-        // Loss lp
-        if (this.lp < currentLp) return { result: GameResult.DEFEAT, type: "LP", value: currentLp - this.lp };
-        // Loss at 0lp
-        if (this.lp == 0 && currentLp == 0) return { result: GameResult.DEFEAT, type: "LP", value: 0 };
-        // Game remake
-        return { result: GameResult.REMAKE, type: "", value: 0 };
-      } else if (this.compareRank(currentRank, this.rank) === "downgrade") {
-        // Loss rank
-        return { result: GameResult.DEFEAT, type: "RANK", value: this.rank };
-      } else {
-        // Win rank
-        return { result: GameResult.VICTORY, type: "RANK", value: this.rank };
-      }
-    } else if (this.compareTier(currentTier, this.tier) === "downgrade") {
-      // Loss tier
-      return { result: GameResult.DEFEAT, type: "TIER", value: this.tier };
-    } else if (this.compareTier(currentTier, this.tier) === "upgrade") {
-      // Win tier
-      return { result: GameResult.VICTORY, type: "TIER", value: this.tier };
-    } else {
-      // error
-      return { result: GameResult.REMAKE, type: "", value: 0 }
-    }
-  }
-
-  compareTier(currentTier: Tier, newTier: Tier) {
-    const order = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"];
-    if (order.indexOf(currentTier) < order.indexOf(newTier)) return "upgrade";
-    if (order.indexOf(currentTier) > order.indexOf(newTier)) return "downgrade";
-    if (order.indexOf(currentTier) === order.indexOf(newTier)) return "same";
-  }
-
-  compareRank(currentRank: string, newRank: string) {
-    const order = ["IV", "III", "II", "I"];
-    if (order.indexOf(currentRank) < order.indexOf(newRank)) return "upgrade";
-    if (order.indexOf(currentRank) > order.indexOf(newRank)) return "downgrade";
-    if (order.indexOf(currentRank) === order.indexOf(newRank)) return "same";
-  }
-
-  getData() {
-    return {
-      name: this.name,
-      tier: this.tier,
-      rank: this.rank,
-      lp: this.lp,
-    };
-  }
-
-  strToTier(tier: string): Tier {
-    switch (tier.toUpperCase()) {
-      case "IRON": {
-        return Tier.IRON;
-      }
-
-      case "BRONZE": {
-        return Tier.BRONZE;
-      }
-
-      case "SILVER": {
-        return Tier.SILVER;
-      }
-
-      case "GOLD": {
-        return Tier.GOLD;
-      }
-
-      case "PLATINUM": {
-        return Tier.PLATINUM;
-      }
-
-      case "EMERALD": {
-        return Tier.EMERALD;
-      }
-
-      case "DIAMOND": {
-        return Tier.DIAMOND;
-      }
-
-      case "MASTER": {
-        return Tier.MASTER;
-      }
-
-      case "GRANDMASTER": {
-        return Tier.GRANDMASTER;
-      }
-
-      case "CHALLENGER": {
-        return Tier.CHALLENGER;
-      }
-
-      default: {
-        return Tier.UNRANK;
-      }
-    }
-  }
 }
 
-type Compare = {
-  result: GameResult;
-  type: string;
-  value: Tier | string | number;
-};
+
 
 export default Summoner;
