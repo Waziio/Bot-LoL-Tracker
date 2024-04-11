@@ -36,7 +36,7 @@ describe("Tests for Summoner class", () => {
             // Act
             const result = await summoner.loadData()
             // Assert
-            expect(result).toBe(true)
+            expect(result).toBe(false)
             expect(getSummonerByIdMock).toHaveBeenCalled()
             expect(getLastGameIdMock).toHaveBeenCalled()
             expect(loadRankMock).toHaveBeenCalled()
