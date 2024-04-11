@@ -35,6 +35,10 @@ class Summoner {
     return this.name;
   }
 
+  getPuuid() : string {
+    return this.puuid;
+  }
+
   getTier(): Tier {
     return this.tier;
   }
