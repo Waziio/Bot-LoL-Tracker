@@ -1,23 +1,23 @@
-import { Client, GatewayIntentBits, TextChannel, EmbedBuilder } from "discord.js";
+import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import express, { Request, Response } from "express";
-import Summoner from "./classes/entity/Summoner";
+import Summoner from "./src/classes/Summoner";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const channelId: string | any = process.env.CHANNEL_ID;
-
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildVoiceStates],
 });
-
 const token = process.env.BOT_TOKEN;
 
 const summoners = [
-  new Summoner("Thv9OHEhk7foYhwnwIlZSKMs-TVXOOliR-XIncJ3rQkUOuX7", "330746797842759681"),
-  new Summoner("nOOKlG4MEE6W-W2GM8CHl0Ruv9SVEKiUTPfnzn32lm1lLGZr", "410796897398423563"),
-  new Summoner("pjc66RDlPA8f0IpLsJVuxNvOYS9276AWba92sHJBU828TgU", "328484167119536128"),
-  new Summoner("DFST_qORn2PSAjSPHHi35-zxqfiGaDnjVw4JJadiT8goEAmIJfeiv2Nc_g", "571030411346706446"),
+  new Summoner("Thv9OHEhk7foYhwnwIlZSKMs-TVXOOliR-XIncJ3rQkUOuX7", "330746797842759681"), // me
+  // new Summoner("nOOKlG4MEE6W-W2GM8CHl0Ruv9SVEKiUTPfnzn32lm1lLGZr", "410796897398423563"), // ewen
+  new Summoner("pjc66RDlPA8f0IpLsJVuxNvOYS9276AWba92sHJBU828TgU", "328484167119536128"), // raph
+  new Summoner("DFST_qORn2PSAjSPHHi35-zxqfiGaDnjVw4JJadiT8goEAmIJfeiv2Nc_g", "571030411346706446"), // julien
+  new Summoner("l_0JwNv-TGcQGwSAvLZLEnyKFs7GRvw_V_Dz942jpKZJqWqi", "1041340632272228382"), // eliott
+  new Summoner("LfijrIMWDlhbwAM7lNU-fcW_uOzZGm0_8JDNCABchHKsiJ9Dd7sd6ileNA", "548117430702964769"), // arthur
 ];
 
 client.once("ready", async () => {
@@ -43,7 +43,7 @@ client.on("messageCreate", async (message) => {
     const newKey = message.content.split(" ")[1].trim();
     process.env.RIOT_API_KEY = newKey;
     // checks that the key is updated
-    if(process.env.RIOT_API_KEY === newKey) {
+    if (process.env.RIOT_API_KEY === newKey) {
       message.reply("Clé Riot mise à jour !")
       await client.destroy()
     }
@@ -58,8 +58,10 @@ async function track(summoners: Summoner[]) {
       const changes = await summoner.check();
       console.log(changes);
       if (changes) channel.send({ embeds: [changes] });
+      // Delay between summoners
+      await new Promise(resolve => setTimeout(resolve, 1500));
     });
-  }, 60000);
+  }, 180000);
 }
 
 const app = express();
@@ -67,11 +69,7 @@ const port = 8000; // Port de contrôle de santé
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
-  if (client.isReady()) {
-    res.status(200).send("Bot is healthy");
-  } else {
-    res.status(500).send("Bot is not healthy");
-  }
+  res.status(200).send("Bot is healthy");
 });
 
 app.listen(port, () => {
