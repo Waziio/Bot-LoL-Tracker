@@ -1,6 +1,8 @@
 import RiotService from "../services/apiRiot"
 import Summoner from "../classes/Summoner"
 import Tier from "../types/tier"
+import compare from '../classes/Compare'
+import GameResult from "../types/gameResult"
 
 const getSummonerByIdMock = jest.fn(() => {
     return new Promise((resolve) => resolve({ data: { name: "name", puuid: "puuid" } }))
@@ -31,6 +33,13 @@ jest.mock('../services/apiRiot', () => {
         };
     });
 })
+
+let compareTotalRankMock = jest.fn(() => {
+    return { result: GameResult.VICTORY, type: 'TIER', value: Tier.SILVER }
+})
+
+jest.mock('../classes/Compare');
+compare.compareTotalRank = compareTotalRankMock
 
 describe("Tests for Summoner class", () => {
     describe("loadData function", () => {
@@ -119,4 +128,46 @@ describe("Tests for Summoner class", () => {
             expect(summoner.getLp()).toBe(43)
         })
     })
+
+    describe.skip("check function", () => {
+        let summoner : Summoner
+        beforeAll(() => {
+            summoner = new Summoner('a', 'b')
+            summoner.setTier(Tier.BRONZE)
+            summoner.setRank('I')
+            summoner.setLp(95)
+        })
+        test("When called and all is OK,", async () => {
+            // Arrange
+            const checkLoadDataMock = jest.fn(() : Promise<boolean> => {
+                return new Promise((resolve) => {
+                    summoner.setPuuid('a')
+                    summoner.setLastGameId('a')
+                    summoner.setTier(Tier.SILVER)
+                    summoner.setRank('IV')
+                    summoner.setLp(15)
+                    resolve(true)
+                })
+            })
+            const checkGetLastGameInfos = jest.fn(() : Promise<{ champion: string; score: string }> => {
+                return new Promise((resolve) => {
+                    resolve({ champion: 'Sett', score: '12/4/8' })
+                })
+            })
+            summoner.loadData = checkLoadDataMock
+            summoner.getLastGameInfos = checkGetLastGameInfos
+            // Act
+            console.log(compare)
+            const result = await summoner.check()
+            // Assert
+            expect(result).toBe(true)
+            expect(checkLoadDataMock).toHaveBeenCalled()
+            expect(compareTotalRankMock).toHaveBeenCalledWith(summoner, Tier.BRONZE, 'I', 95)
+            expect(checkGetLastGameInfos).toHaveBeenCalledWith(summoner.getLastGameId())
+            console.log(result)
+        })
+    })
 })
+
+
+

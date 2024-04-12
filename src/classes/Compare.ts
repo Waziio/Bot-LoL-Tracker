@@ -3,7 +3,7 @@ import Tier from "../types/tier";
 import Summoner from "./Summoner";
 
 
-export function compareTotalRank(summoner: Summoner, currentTier: Tier, currentRank: string, currentLp: number): CompareResult {
+function compareTotalRank(summoner: Summoner, currentTier: Tier, currentRank: string, currentLp: number): CompareResult {
     // Same tier
     if (compareTier(currentTier, summoner.getTier()) === "same") {
         // Same rank
@@ -63,3 +63,5 @@ type CompareResult = {
     type: string;
     value: Tier | string | number;
 };
+
+export default { compareTotalRank }

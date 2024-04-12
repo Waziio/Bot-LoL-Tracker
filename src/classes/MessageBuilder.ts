@@ -5,17 +5,18 @@ import Tier from "../types/tier";
 
 export default class MessageBuilder {
   private summoner: Summoner;
-  private embedBuilder: EmbedBuilder = new EmbedBuilder();
+  private embedBuilder: EmbedBuilder;
 
   constructor(summoner: Summoner) {
     this.summoner = summoner;
+    this.embedBuilder = new EmbedBuilder()
   }
 
-  build(gameResult: GameResult, type: string, value: any, summonerName: string, champion: string, score: string): EmbedBuilder | boolean {
+  build(gameResult: GameResult, type: string, value: any, champion: string, score: string): EmbedBuilder | boolean {
     if (gameResult === GameResult.REMAKE) return false;
     this.embedBuilder.setTitle(gameResult);
     // Add Summoner name
-    this.embedBuilder.addFields({ name: "Nom", value: summonerName });
+    this.embedBuilder.addFields({ name: "Nom", value: this.summoner.getName() });
     // Add champion and score
     this.embedBuilder.addFields({ name: "Champion", value: champion }, { name: "Score", value: score });
     // Add champion image
