@@ -15,8 +15,6 @@ export default class MessageBuilder {
   build(gameResult: GameResult, type: string, value: any, champion: string, score: string): EmbedBuilder | boolean {
     if (gameResult === GameResult.REMAKE) return false;
     this.embedBuilder.setTitle(gameResult);
-    // Add Summoner name
-    this.embedBuilder.addFields({ name: "Nom", value: this.summoner.getName() });
     // Add champion and score
     this.embedBuilder.addFields({ name: "Champion", value: champion }, { name: "Score", value: score });
     // Add champion image

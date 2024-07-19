@@ -18,10 +18,10 @@ class Summoner {
   private _lastGameId: string;
   private _riotService: RiotService;
 
-  constructor(id: string, discordAt: string) {
+  constructor(name: string, id: string, discordAt: string) {
     this._id = id;
     this._puuid = "";
-    this._name = "";
+    this._name = name;
     this._discordAt = discordAt;
     this._tier = Tier.UNRANK;
     this._rank = "";
@@ -102,7 +102,6 @@ class Summoner {
     const data = (await this._riotService.getSummonerById(this._id)).data;
     if (!data) return false;
     this._puuid = data.puuid;
-    this._name = data.name;
     if (!(await this.findLastGameId())) return false;
     if (!(await this.loadRank())) return false;
     return true;
@@ -149,12 +148,39 @@ class Summoner {
     // Get infos from last game
     const { champion, score } = await this.getLastGameInfos(this._lastGameId);
     if (!champion) return false;
+
     // Build discord message 
     const msgBuilder = new MessageBuilder(this);
-    console.log(result)
-    console.log(champion + score)
     return msgBuilder.build(result.result, result.type, result.value, champion, score);
   }
+
+  async getLastMatch(matchId: string): Promise<{ champion: string; score: string }> {
+    const matchInfos: any = await this._riotService.getGameInfos(matchId);
+    const players: Array<any> = matchInfos.data.info.participants;
+    let score = {
+      kills: "",
+      deaths: "",
+      assists: "",
+    };
+    let champion = "";
+
+    if (matchInfos) {
+      // Find summoner
+      players.forEach((player) => {
+        // If the player is our summoner
+        if (player.puuid === this._puuid) {
+          // Get his game infos
+          score.kills = player.kills;
+          score.deaths = player.deaths;
+          score.assists = player.assists;
+          champion = player.championName;
+        }
+      });
+    }
+
+    return { champion: champion, score: `${score.kills} / ${score.deaths} / ${score.assists}` };
+  }
+
 
   /**
    * Get the score and the champion played by the summoner in a game
