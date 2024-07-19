@@ -5,10 +5,11 @@ import Tier from "../types/tier";
 
 export default class MessageBuilder {
   private summoner: Summoner;
-  private embedBuilder: EmbedBuilder = new EmbedBuilder();
+  private embedBuilder: EmbedBuilder;
 
   constructor(summoner: Summoner) {
     this.summoner = summoner;
+    this.embedBuilder = new EmbedBuilder()
   }
 
   build(gameResult: GameResult, type: string, value: any, champion: string, score: string): EmbedBuilder | boolean {

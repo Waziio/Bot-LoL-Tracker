@@ -18,15 +18,7 @@ class RiotService {
     return axios(config);
   }
 
-  async getSummonerByName(name: string): Promise<AxiosResponse> {
-    const config = {
-      url: this.getUrl(`/summoner/v4/summoners/by-name/${name}`),
-      method: "GET",
-    };
-    return await this.call(config);
-  }
-
-  async getSummonerById(id: string): Promise<AxiosResponse> {
+  async getSummonerById(id: string): Promise<AxiosResponse<GetSummonerByIdResponse>> {
     const config = {
       url: this.getUrl(`/summoner/v4/summoners/${id}`),
       method: "GET",
@@ -34,7 +26,7 @@ class RiotService {
     return await this.call(config);
   }
 
-  async getLastGameId(puuid: string) {
+  async getLastGameId(puuid: string) : Promise<AxiosResponse<Array<string>>> {
     const config = {
       url: this.getMatchesUrl(`/match/v5/matches/by-puuid/${puuid}/ids?queue=420&type=ranked&start=0&count=1`, false),
       method: "GET",
@@ -42,7 +34,7 @@ class RiotService {
     return await this.call(config);
   }
 
-  async getGameInfos(matchId: string) {
+  async getGameInfos(matchId: string) : Promise<AxiosResponse<GetGameInfosResponse>> {
     const config = {
       url: this.getMatchesUrl(`/match/v5/matches/${matchId}`),
       method: "GET",
@@ -50,7 +42,7 @@ class RiotService {
     return await this.call(config);
   }
 
-  async getRank(summonerId: string): Promise<AxiosResponse> {
+  async getRank(summonerId: string): Promise<AxiosResponse<GetRankResponse>> {
     const config = {
       url: this.getUrl(`/league/v4/entries/by-summoner/${summonerId}`),
       method: "GET",

@@ -1,0 +1,12 @@
+name: GitHub Actions for unit tests
+run-name: Unit tests are running ! 🚀
+on: [push]
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: npm run test
