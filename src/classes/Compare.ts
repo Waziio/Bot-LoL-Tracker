@@ -64,4 +64,4 @@ type CompareResult = {
     value: Tier | string | number;
 };
 
-export default { compareTotalRank }
+export default { compareTotalRank, compareRank, compareTier }
