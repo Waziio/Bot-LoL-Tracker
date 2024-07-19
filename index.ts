@@ -77,3 +77,8 @@ app.listen(port, () => {
 });
 
 client.login(token);
+
+process.on('uncaughtException', function (err) {
+  console.error(err);
+  console.log('Node NOT Exiting...');
+});
