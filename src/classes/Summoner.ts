@@ -5,7 +5,6 @@ import Tier from "../types/tier";
 import MessageBuilder from "./MessageBuilder";
 import { strToTier } from "../utils/utils";
 import compare from "./Compare";
-import * as console from "node:console";
 
 class Summoner {
   private _id: string;
@@ -62,20 +61,8 @@ class Summoner {
     return this._lastGameId
   }
 
-  setId(value: string) {
-    this._id = value;
-  }
-
   setPuuid(value: string) {
     this._puuid = value;
-  }
-
-  setName(value: string) {
-    this._name = value;
-  }
-
-  setDiscordAt(value: string) {
-    this._discordAt = value;
   }
 
   setTier(value: Tier) {
@@ -92,10 +79,6 @@ class Summoner {
 
   setLastGameId(value: string) {
     this._lastGameId = value;
-  }
-
-  setRiotService(value: RiotService) {
-    this._riotService = value;
   }
 
   async loadData() {
@@ -137,14 +120,17 @@ class Summoner {
     const oldRank = this._rank;
     const oldLp = this._lp;
     const oldLastGameId = this._lastGameId;
+
     // Init data of summoner
     if (!(await this.loadData())) return false;
+
     // Checks if there is a new game
     if (oldLastGameId === this._lastGameId) return false;
+
     // Compare rank
     const result = compare.compareTotalRank(this, oldTier, oldRank, oldLp);
-    // If last game was a remake, ignore it
-    if (result.result === GameResult.REMAKE) return false;
+    if (result.result === GameResult.REMAKE) return false; // If last game was a remake, ignore it
+
     // Get infos from last game
     const { champion, score } = await this.getLastGameInfos(this._lastGameId);
     if (!champion) return false;
@@ -152,33 +138,6 @@ class Summoner {
     // Build discord message 
     const msgBuilder = new MessageBuilder(this);
     return msgBuilder.build(result.result, result.type, result.value, champion, score);
-  }
-
-  async getLastMatch(matchId: string): Promise<{ champion: string; score: string }> {
-    const matchInfos: any = await this._riotService.getGameInfos(matchId);
-    const players: Array<any> = matchInfos.data.info.participants;
-    let score = {
-      kills: "",
-      deaths: "",
-      assists: "",
-    };
-    let champion = "";
-
-    if (matchInfos) {
-      // Find summoner
-      players.forEach((player) => {
-        // If the player is our summoner
-        if (player.puuid === this._puuid) {
-          // Get his game infos
-          score.kills = player.kills;
-          score.deaths = player.deaths;
-          score.assists = player.assists;
-          champion = player.championName;
-        }
-      });
-    }
-
-    return { champion: champion, score: `${score.kills} / ${score.deaths} / ${score.assists}` };
   }
 
 
@@ -199,7 +158,7 @@ class Summoner {
 
     if (matchInfos) {
       // Find summoner
-      players.forEach((player) => {
+      for (const player of players) {
         // If the player is our summoner
         if (player.puuid === this._puuid) {
           // Get his game infos
@@ -207,8 +166,9 @@ class Summoner {
           score.deaths = player.deaths;
           score.assists = player.assists;
           champion = player.championName;
+          break
         }
-      });
+      }
     }
 
     return { champion: champion, score: `${score.kills} / ${score.deaths} / ${score.assists}` };

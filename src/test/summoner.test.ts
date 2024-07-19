@@ -1,8 +1,22 @@
-import RiotService from "../services/apiRiot"
 import Summoner from "../classes/Summoner"
 import Tier from "../types/tier"
 import compare from '../classes/Compare'
 import GameResult from "../types/gameResult"
+import { EmbedBuilder } from "discord.js";
+
+const expectedMessage = {
+    title: 'Victoire',
+    fields: [
+        { name: 'Champion', value: 'Sett' },
+        { name: 'Score', value: '12/4/8' }
+    ],
+    thumbnail: {
+        url: 'https://ddragon.leagueoflegends.com/cdn/11.11.1/img/champion/Sett.png'
+    },
+    description: '<@c> est monté **SILVER**',
+    color: 15844367
+}
+
 
 const getSummonerByIdMock = jest.fn(() => {
     return new Promise((resolve) => resolve({ data: { name: "name", puuid: "puuid" } }))
@@ -42,6 +56,10 @@ jest.mock('../classes/Compare');
 compare.compareTotalRank = compareTotalRankMock
 
 describe("Tests for Summoner class", () => {
+    beforeEach(() => {
+        compareTotalRankMock.mockClear()
+    })
+
     describe("loadData function", () => {
         let findLastGameIdMock = jest.fn((): Promise<boolean> => {
             return new Promise((resolve) => {
@@ -54,9 +72,9 @@ describe("Tests for Summoner class", () => {
             })
         })
 
-        test("When all is OK, should set name and puuid and return true", async () => {
+        test("When all is OK, should set puuid and return true", async () => {
             // Arrange
-            const summoner = new Summoner('a', 'b')
+            const summoner = new Summoner('a', 'b', 'c')
             summoner.findLastGameId = findLastGameIdMock
             summoner.loadRank = loadRankMock
             // Act
@@ -66,13 +84,12 @@ describe("Tests for Summoner class", () => {
             expect(getSummonerByIdMock).toHaveBeenCalled()
             expect(findLastGameIdMock).toHaveBeenCalled()
             expect(loadRankMock).toHaveBeenCalled()
-            expect(summoner.getName()).toBe("name")
             expect(summoner.getPuuid()).toBe("puuid")
         })
 
-        test("When getSummonerById failed, should set name and puuid and return false", async () => {
+        test("When getSummonerById failed, should set puuid and return false", async () => {
             // Arrange
-            const summoner = new Summoner('a', 'b')
+            const summoner = new Summoner('a', 'b', 'c')
             summoner.findLastGameId = () => new Promise((resolve) => resolve(false))
             summoner.loadRank = loadRankMock
             // Act
@@ -81,13 +98,12 @@ describe("Tests for Summoner class", () => {
             expect(result).toBe(false)
             expect(getSummonerByIdMock).toHaveBeenCalled()
             expect(loadRankMock).toHaveBeenCalled()
-            expect(summoner.getName()).toBe("name")
             expect(summoner.getPuuid()).toBe("puuid")
         })
 
-        test("When loadRank failed, should set name and puuid and return false", async () => {
+        test("When loadRank failed, should set puuid and return false", async () => {
             // Arrange
-            const summoner = new Summoner('a', 'b')
+            const summoner = new Summoner('a', 'b', 'c')
             summoner.findLastGameId = findLastGameIdMock
             summoner.loadRank = () => new Promise((resolve) => resolve(false))
             // Act
@@ -96,7 +112,6 @@ describe("Tests for Summoner class", () => {
             expect(result).toBe(false)
             expect(getSummonerByIdMock).toHaveBeenCalled()
             expect(findLastGameIdMock).toHaveBeenCalled()
-            expect(summoner.getName()).toBe("name")
             expect(summoner.getPuuid()).toBe("puuid")
         })
     })
@@ -104,7 +119,7 @@ describe("Tests for Summoner class", () => {
     describe("findLastGameId function", () => {
         test("When called and all is OK, should set lastGameId and return true", async () => {
             // Arrange
-            const summoner = new Summoner('a', 'b')
+            const summoner = new Summoner('a', 'b', 'c')
             // Act
             const result = await summoner.findLastGameId()
             // Assert
@@ -117,7 +132,7 @@ describe("Tests for Summoner class", () => {
     describe("loadRank function", () => {
         test("When called and all is OK, should set tier, rank, lp and return true", async () => {
             // Arrange
-            const summoner = new Summoner('a', 'b')
+            const summoner = new Summoner('a', 'b', 'c')
             // Act
             const result = await summoner.loadRank()
             // Assert
@@ -129,15 +144,16 @@ describe("Tests for Summoner class", () => {
         })
     })
 
-    describe.skip("check function", () => {
+    describe("check function", () => {
         let summoner : Summoner
         beforeAll(() => {
-            summoner = new Summoner('a', 'b')
+            summoner = new Summoner('a', 'b', 'c')
             summoner.setTier(Tier.BRONZE)
             summoner.setRank('I')
             summoner.setLp(95)
         })
-        test("When called and all is OK,", async () => {
+
+        test("When called and all is OK, should return a built Discord message", async () => {
             // Arrange
             const checkLoadDataMock = jest.fn(() : Promise<boolean> => {
                 return new Promise((resolve) => {
@@ -156,15 +172,89 @@ describe("Tests for Summoner class", () => {
             })
             summoner.loadData = checkLoadDataMock
             summoner.getLastGameInfos = checkGetLastGameInfos
+
             // Act
-            console.log(compare)
             const result = await summoner.check()
+
             // Assert
-            expect(result).toBe(true)
+            expect(result).toBeInstanceOf(EmbedBuilder)
             expect(checkLoadDataMock).toHaveBeenCalled()
             expect(compareTotalRankMock).toHaveBeenCalledWith(summoner, Tier.BRONZE, 'I', 95)
             expect(checkGetLastGameInfos).toHaveBeenCalledWith(summoner.getLastGameId())
-            console.log(result)
+            expect((result as EmbedBuilder).data).toEqual(expectedMessage)
+        })
+
+        test("When called and loadData failed, should return false", async () => {
+            // Arrange
+            const checkLoadDataMock = jest.fn(() => Promise.resolve(false))
+            summoner.loadData = checkLoadDataMock
+
+            const checkGetLastGameInfosMock = jest.fn()
+            summoner.getLastGameInfos = checkGetLastGameInfosMock
+
+            // Act
+            const result = await summoner.check()
+
+            // Assert
+            expect(result).toBe(false)
+            expect(checkLoadDataMock).toHaveBeenCalled()
+            expect(compareTotalRankMock).not.toHaveBeenCalled()
+            expect(checkGetLastGameInfosMock).not.toHaveBeenCalled()
+        })
+
+        test("When called and there isn't a new game, should return false", async () => {
+            // Arrange
+            const checkLoadDataMock = jest.fn(() : Promise<boolean> => {
+                return new Promise((resolve) => {
+                    summoner.setPuuid('a')
+                    summoner.setLastGameId(summoner.getLastGameId()) // Same last game id than before
+                    summoner.setTier(Tier.SILVER)
+                    summoner.setRank('IV')
+                    summoner.setLp(15)
+                    resolve(true)
+                })
+            })
+            const checkGetLastGameInfos = jest.fn()
+            summoner.loadData = checkLoadDataMock
+            summoner.getLastGameInfos = checkGetLastGameInfos
+
+            // Act
+            const result = await summoner.check()
+
+            // Assert
+            expect(result).toBe(false)
+            expect(checkLoadDataMock).toHaveBeenCalled()
+            expect(compareTotalRankMock).not.toHaveBeenCalled()
+            expect(checkGetLastGameInfos).not.toHaveBeenCalled()
+        })
+
+        test("When called and the new game is a remake, should return false", async () => {
+            // Arrange
+            const checkLoadDataMock = jest.fn(() : Promise<boolean> => {
+                return new Promise((resolve) => {
+                    summoner.setPuuid('a')
+                    summoner.setLastGameId('abc')
+                    summoner.setTier(Tier.SILVER)
+                    summoner.setRank('IV')
+                    summoner.setLp(15)
+                    resolve(true)
+                })
+            })
+            const checkGetLastGameInfos = jest.fn()
+            summoner.loadData = checkLoadDataMock
+            summoner.getLastGameInfos = checkGetLastGameInfos
+
+            const remakeGame = { result: GameResult.REMAKE, type: 'TIER', value: Tier.SILVER }
+            compareTotalRankMock.mockReturnValueOnce(remakeGame)
+
+            // Act
+            const result = await summoner.check()
+
+            // Assert
+            expect(result).toBe(false)
+            expect(checkLoadDataMock).toHaveBeenCalled()
+            expect(compareTotalRankMock).toHaveBeenCalled()
+            expect(checkGetLastGameInfos).not.toHaveBeenCalled()
         })
     })
 })
