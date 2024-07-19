@@ -100,7 +100,7 @@ class Summoner {
   async loadRank() {
     let result = (await this._riotService.getRank(this._id)).data;
     // Get only solo queue rank
-    result = result.filter((obj: any) => obj.queueType === 'RANKED_SOLO_5x5');
+    result = result.filter((obj: SummonerRank) => obj.queueType === 'RANKED_SOLO_5x5');
     const data = result[0];
     console.log(data);
     // Checks if summoner is unranked
@@ -147,12 +147,12 @@ class Summoner {
    * @returns 
    */
   async getLastGameInfos(matchId: string): Promise<{ champion: string; score: string }> {
-    const matchInfos: any = await this._riotService.getGameInfos(matchId);
-    const players: Array<any> = matchInfos.data.info.participants;
+    const matchInfos = await this._riotService.getGameInfos(matchId);
+    const players = matchInfos.data.info.participants;
     let score = {
-      kills: "",
-      deaths: "",
-      assists: "",
+      kills: 0,
+      deaths: 0,
+      assists: 0,
     };
     let champion = "";
 
